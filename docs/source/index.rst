@@ -13,10 +13,12 @@ Autorização e captura
 
 Para efetuar uma transação utilize o seguinte modelo: ::
 
+    from decimal import Decimal
     from cielo import PaymentAttempt, GetAuthorizedException
+
     params = {
-        'affiliation_id': '',
-        'api_key': '',
+        'affiliation_id': '1234567890',
+        'api_key': 'ABCDEFG123456789',
         'card_type': PaymentAttempt.VISA,
         'total': Decimal('1.00'),
         'order_id': '7DSD163AH1',  # strings são permitidas
@@ -33,7 +35,7 @@ Para efetuar uma transação utilize o seguinte modelo: ::
     try:
         attempt.get_authorized()
     except GetAuthorizedException, e:
-        print 'Não foi possível processar: %s' % e
+        print u'Não foi possível processar: %s' % e
     else:
         attempt.capture()
 
