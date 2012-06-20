@@ -2,5 +2,8 @@
 python-cielo
 ============
 
-Biblioteca para autorização e captura de pagamentos pelo webservice da Cielo.
-Visualize a documentação em ``/docs``.
+python-cielo is a lightweight lib for making payments over the Cielo webservice (Brazil)
+
+Docs
+^^^^
+Docs are hosted at `ReadTheDocs <http://python-cielo.readthedocs.org/>`_.
