@@ -73,6 +73,7 @@ Atualmente as seguintes bandeiras são suportadas:
 * Diners: ``PaymentAttempt.DINERS``
 * Discover: ``PaymentAttempt.DISCOVER``
 * ELO: ``PaymentAttempt.ELO``
+* American express: ``PaymentAttempt.AMEX``
 
 
 Tipos de transações
