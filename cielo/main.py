@@ -25,13 +25,14 @@ class CaptureException(Exception):
 
 
 class PaymentAttempt(object):
-    VISA, MASTERCARD, DINERS, DISCOVER, ELO = 'visa', 'mastercard', 'diners', 'discover', 'elo'
+    VISA, MASTERCARD, DINERS, DISCOVER, ELO, AMEX = 'visa', 'mastercard', 'diners', 'discover', 'elo', 'amex'
     CARD_TYPE_C = (
         (VISA, u'Visa'),
         (MASTERCARD, u'Mastercard'),
         (DINERS, u'Diners'),
         (DISCOVER, u'Discover'),
         (ELO, u'ELO'),
+        (AMEX, u'American express'),
     )
 
     CASH, INSTALLMENT_STORE, INSTALLMENT_CIELO = 1, 2, 3
