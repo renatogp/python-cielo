@@ -82,16 +82,24 @@ class PaymentAttempt(object):
 
         dom = xml.dom.minidom.parseString(response.content)
 
-        if dom.getElementsByTagName('erro'):
+        try:
             error_id = dom.getElementsByTagName('codigo')[0].childNodes[0].data
             error_message = dom.getElementsByTagName('mensagem')[0].childNodes[0].data
-            raise GetAuthorizedException(error_id, error_message)
+        except:
+            error_id = None
+            error_message = u'Ocorreu um erro, verifique junto a sua operadora de cartão.'
 
-        status = int(dom.getElementsByTagName('status')[0].childNodes[0].data)
+
+        if dom.getElementsByTagName('erro'):
+            raise GetAuthorizedException(error_id, error_message)
+        else:
+            status = int(dom.getElementsByTagName('status')[0].childNodes[0].data)
+
         if status != 4:
             # 4 = autorizado (ou captura pendente)
             self._authorized = False
-            raise GetAuthorizedException(status)
+            raise GetAuthorizedException(error_id, error_message)
+
 
         self.transaction_id = dom.getElementsByTagName('tid')[0].childNodes[0].data
         self.pan = dom.getElementsByTagName('pan')[0].childNodes[0].data
