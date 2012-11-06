@@ -87,7 +87,7 @@ class PaymentAttempt(object):
             error_message = dom.getElementsByTagName('mensagem')[0].childNodes[0].data
         except:
             error_id = None
-            error_message = "Erro, verifique junto a sua operadora de cartão"
+            error_message = u'Ocorreu um, verifique junto a sua operadora de cartão'
 
 
         if dom.getElementsByTagName('erro'):
