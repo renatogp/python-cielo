@@ -83,8 +83,8 @@ class PaymentAttempt(object):
         dom = xml.dom.minidom.parseString(response.content)
 
         try:
-            error_id = dom.getElementsByTagName('codigo')[0].childNodes[0].data
-            error_message = dom.getElementsByTagName('mensagem')[0].childNodes[0].data
+            error_id = dom.getElementsByTagName('autorizacao')[0].getElementsByTagName('codigo')[0].childNodes[0].data
+            error_message = dom.getElementsByTagName('autorizacao')[0].getElementsByTagName('mensagem')[0].childNodes[0].data
         except:
             error_id = None
             error_message = u'Ocorreu um erro, verifique junto a sua operadora de cartão.'
