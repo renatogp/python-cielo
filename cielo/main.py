@@ -9,6 +9,25 @@ from util import moneyfmt
 
 SANDBOX_URL = 'https://qasecommerce.cielo.com.br/servicos/ecommwsec.do'
 PRODUCTION_URL = 'https://ecommerce.cbmp.com.br/servicos/ecommwsec.do'
+CIELO_MSG_ERRORS = {
+    '001': u'A mensagem XML está fora do formato especificado pelo arquivo ecommerce.xsd (001-Mensagem inválida)',
+    '002': u'Impossibilidade de autenticar uma requisição da loja virtual. (002-Credenciais inválidas)',
+    '003': u'Não existe transação para o identificador informado. (003-Transação inexistente)',
+    '010': u'A transação, com ou sem cartão, está divergente com a permissão do envio dessa informação. (010-Inconsistência no envio do cartão)',
+    '011': u'A transação está configurada com uma modalidade de pagamento não habilitada para a loja. (011-Modalidade não habilitada)',
+    '012': u'O número de parcelas solicitado ultrapassa o máximo permitido. (012-Número de parcelas inválido)',
+    '020': u'Não é permitido realizar autorização para o status da transação. (020-Status não permite autorização)',
+    '021': u'Não é permitido realizar autorização, pois o prazo está vencido. (021-Prazo de autorização vencido)',
+    '022': u'EC não possui permissão para realizar a autorização.(022-EC não autorizado)',
+    '030': u'A captura não pode ser realizada, pois a transação não está autorizada.(030-Transação não autorizada para captura)',
+    '031': u'A captura não pode ser realizada, pois o prazo para captura está vencido.(031-Prazo de captura vencido)',
+    '032': u'O valor solicitado para captura não é válido.(032-Valor de captura inválido)',
+    '033': u'Não foi possível realizar a captura.(033-Falha ao capturar)',
+    '040': u'O cancelamento não pode ser realizado, pois o prazo está vencido.(040-Prazo de cancelamento vencido)',
+    '041': u'O atual status da transação não permite cancelament.(041-Status não permite cancelamento)',
+    '042': u'Não foi possível realizar o cancelamento.(042-Falha ao cancelar)',
+    '099': u'Falha no sistema.(099-Erro inesperado)',
+}
 
 
 class GetAuthorizedException(Exception):
@@ -72,37 +91,41 @@ class PaymentAttempt(object):
         self.card_holders_name = card_holders_name
         self._authorized = False
 
+        self.sandbox = sandbox
+
     def get_authorized(self):
         self.date = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
-        payload = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'authorize.xml'), 'r').read() % self.__dict__
+        self.payload = open(
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), 'authorize.xml'), 'r').read() % self.__dict__
 
-        response = requests.post(self.url, data={
-            'mensagem': payload,
-        })
+        self.response = requests.post(
+            self.url,
+            data={'mensagem': self.payload, })
 
-        dom = xml.dom.minidom.parseString(response.content)
+        self.dom = xml.dom.minidom.parseString(self.response.content)
 
-        try:
-            error_id = dom.getElementsByTagName('autorizacao')[0].getElementsByTagName('codigo')[0].childNodes[0].data
-            error_message = dom.getElementsByTagName('autorizacao')[0].getElementsByTagName('mensagem')[0].childNodes[0].data
-        except:
-            error_id = None
-            error_message = u'Ocorreu um erro, verifique junto a sua operadora de cartão.'
+        if self.dom.getElementsByTagName('erro'):
+            self.error = self.dom.getElementsByTagName(
+                'erro')[0].getElementsByTagName('codigo')[0].childNodes[0].data
+            self.error_id = None
+            self.error_message = CIELO_MSG_ERRORS[self.error]
+            raise GetAuthorizedException(self.error_id, self.error_message)
 
-
-        if dom.getElementsByTagName('erro'):
-            raise GetAuthorizedException(error_id, error_message)
-        else:
-            status = int(dom.getElementsByTagName('status')[0].childNodes[0].data)
-
-        if status != 4:
-            # 4 = autorizado (ou captura pendente)
+        self.status = int(
+            self.dom.getElementsByTagName('status')[0].childNodes[0].data)
+        if self.status != 4:
+            self.error_id = self.dom.getElementsByTagName(
+                'autorizacao')[0].getElementsByTagName(
+                    'codigo')[0].childNodes[0].data
+            self.error_message = self.dom.getElementsByTagName(
+                'autorizacao')[0].getElementsByTagName(
+                    'mensagem')[0].childNodes[0].data
             self._authorized = False
-            raise GetAuthorizedException(error_id, error_message)
+            raise GetAuthorizedException(self.error_id, self.error_message)
 
-
-        self.transaction_id = dom.getElementsByTagName('tid')[0].childNodes[0].data
-        self.pan = dom.getElementsByTagName('pan')[0].childNodes[0].data
+        self.transaction_id = self.dom.getElementsByTagName(
+            'tid')[0].childNodes[0].data
+        self.pan = self.dom.getElementsByTagName('pan')[0].childNodes[0].data
 
         self._authorized = True
         return True
@@ -123,4 +146,3 @@ class PaymentAttempt(object):
             # 6 = capturado
             raise CaptureException()
         return True
-
