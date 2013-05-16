@@ -105,10 +105,12 @@ class PaymentAttempt(object):
         self.dom = xml.dom.minidom.parseString(self.response.content)
 
         if self.dom.getElementsByTagName('erro'):
-            self.error = self.dom.getElementsByTagName(
+            self.error_id = self.dom.getElementsByTagName(
                 'erro')[0].getElementsByTagName('codigo')[0].childNodes[0].data
-            self.error_id = None
-            self.error_message = CIELO_MSG_ERRORS[self.error]
+            try:
+                self.error_message = CIELO_MSG_ERRORS[self.error_id]
+            except IndexError:
+                self.error_message = u'Erro não especificado, ver documentação (código %s)' % self.error_id
             raise GetAuthorizedException(self.error_id, self.error_message)
 
         self.status = int(
