@@ -6,6 +6,23 @@ import xml.dom.minidom
 from decimal import Decimal
 from util import moneyfmt
 
+VISA, MASTERCARD, DINERS, DISCOVER, ELO, AMEX = 'visa', \
+    'mastercard', 'diners', 'discover', 'elo', 'amex'
+CARD_TYPE_C = (
+    (VISA, u'Visa'),
+    (MASTERCARD, u'Mastercard'),
+    (DINERS, u'Diners'),
+    (DISCOVER, u'Discover'),
+    (ELO, u'ELO'),
+    (AMEX, u'American express'),
+)
+
+CASH, INSTALLMENT_STORE, INSTALLMENT_CIELO = 1, 2, 3
+TRANSACTION_TYPE_C = (
+    (CASH, u'À vista'),
+    (INSTALLMENT_STORE, u'Parcelado (estabelecimento)'),
+    (INSTALLMENT_CIELO, u'Parcelado (Cielo)'),
+)
 
 SANDBOX_URL = 'https://qasecommerce.cielo.com.br/servicos/ecommwsec.do'
 PRODUCTION_URL = 'https://ecommerce.cbmp.com.br/servicos/ecommwsec.do'
@@ -43,32 +60,77 @@ class CaptureException(Exception):
     pass
 
 
+class TokenException(Exception):
+    pass
+
+
+class CieloToken(object):
+    def __init__(
+            self,
+            affiliation_id,
+            api_key,
+            card_type,
+            card_number,
+            exp_month,
+            exp_year,
+            card_holders_name,
+            sandbox=False):
+
+        if len(str(exp_year)) == 2:
+            exp_year = '20%s' % exp_year
+
+        self.url = SANDBOX_URL if sandbox else PRODUCTION_URL
+        self.card_type = card_type
+        self.affiliation_id = affiliation_id
+        self.api_key = api_key
+        self.exp_month = exp_month
+        self.exp_year = exp_year
+        self.expiration = '%s%s' % (exp_year, exp_month)
+        self.card_holders_name = card_holders_name
+        self.card_number = card_number
+
+    def create_token(self):
+        self.payload = open(
+            os.path.join(
+                os.path.dirname(os.path.abspath(__file__)),
+                'token.xml'), 'r').read() % self.__dict__
+        self.response = requests.post(
+            self.url,
+            data={'mensagem': self.payload, })
+        self.dom = xml.dom.minidom.parseString(self.response.content)
+
+        if self.dom.getElementsByTagName('erro'):
+            raise TokenException('Erro ao gerar token!')
+
+        self.token = self.dom.getElementsByTagName(
+            'codigo-token')[0].childNodes[0].data
+        self.status = self.dom.getElementsByTagName(
+            'status')[0].childNodes[0].data
+        self.card = self.dom.getElementsByTagName(
+            'numero-cartao-truncado')[0].childNodes[0].data
+        return True
+
+
 class PaymentAttempt(object):
-    VISA, MASTERCARD, DINERS, DISCOVER, ELO, AMEX = 'visa', 'mastercard', 'diners', 'discover', 'elo', 'amex'
-    CARD_TYPE_C = (
-        (VISA, u'Visa'),
-        (MASTERCARD, u'Mastercard'),
-        (DINERS, u'Diners'),
-        (DISCOVER, u'Discover'),
-        (ELO, u'ELO'),
-        (AMEX, u'American express'),
-    )
-
-    CASH, INSTALLMENT_STORE, INSTALLMENT_CIELO = 1, 2, 3
-    TRANSACTION_TYPE_C = (
-        (CASH, u'À vista'),
-        (INSTALLMENT_STORE, u'Parcelado (estabelecimento)'),
-        (INSTALLMENT_CIELO, u'Parcelado (Cielo)'),
-    )
-
-    def __init__(self, affiliation_id, api_key, total, card_type, installments, order_id, card_number, cvc2,
-                exp_month, exp_year, card_holders_name, transaction=CASH, sandbox=False):
+    def __init__(
+            self,
+            affiliation_id,
+            api_key,
+            total,
+            card_type,
+            installments,
+            order_id,
+            card_number,
+            cvc2,
+            exp_month,
+            exp_year,
+            card_holders_name, transaction=CASH, sandbox=False):
 
         assert isinstance(total, Decimal), u'total must be an instance of Decimal'
         assert installments in range(1, 13), u'installments must be a integer between 1 and 12'
 
-        assert (installments == 1 and transaction == self.CASH) \
-                    or installments > 1 and transaction != self.CASH, \
+        assert (installments == 1 and transaction == CASH) \
+                    or installments > 1 and transaction != CASH, \
                     u'if installments = 1 then transaction must be None or "cash"'
 
         if len(str(exp_year)) == 2:
