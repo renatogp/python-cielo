@@ -18,19 +18,19 @@ Autorização e captura
 Para efetuar uma transação utilize o seguinte modelo: ::
 
     from decimal import Decimal
-    from cielo import PaymentAttempt, GetAuthorizedException
+    from cielo import PaymentAttempt, GetAuthorizedException, VISA, CASH
 
     params = {
         'affiliation_id': '1234567890',
         'api_key': 'ABCDEFG123456789',
-        'card_type': PaymentAttempt.VISA,
+        'card_type': VISA,
         'total': Decimal('1.00'),
         'order_id': '7DSD163AH1',  # strings são permitidas
         'card_number': '4012001037141112',
         'cvc2': 423,  # código de segurança
         'exp_month': 1,
         'exp_year': 2010,
-        'transaction': PaymentAttempt.CASH,
+        'transaction': CASH,
         'card_holders_name': 'JOAO DA SILVA',
         'installments': 1,
     }
@@ -75,20 +75,22 @@ Gerando um novo token
 ---------------------
 
 Para criar um novo token junto a Cielo: ::
-    rom cielo import CieloToken
+
+    from cielo import CieloToken, VISA
+
     params = {
-        'affiliation_id': '1006993069',
-        'api_key': '25fbb99741c739dd84d7b06ec78c9bac718838630f30b112d033ce2e621b34f3',
-        'card_type': 'visa',
+        'affiliation_id': '1234567890',
+        'api_key': 'ABCDEFG123456789',
+        'card_type': VISA,
+        'total': Decimal('1.00'),
         'card_number': '4012001037141112',
         'exp_month': 1,
         'exp_year': 2010,
         'card_holders_name': 'JOAO DA SILVA',
-        'sandbox': True,
     }
+
     token = CieloToken(**params)
     token.create_token()
-
 
 Bandeiras suportadas
 ^^^^^^^^^^^^^^^^^^^^
