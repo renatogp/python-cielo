@@ -33,6 +33,7 @@ CIELO_MSG_ERRORS = {
     '010': u'A transação, com ou sem cartão, está divergente com a permissão do envio dessa informação. (010-Inconsistência no envio do cartão)',
     '011': u'A transação está configurada com uma modalidade de pagamento não habilitada para a loja. (011-Modalidade não habilitada)',
     '012': u'O número de parcelas solicitado ultrapassa o máximo permitido. (012-Número de parcelas inválido)',
+    '019': u'A URL de Retorno é obrigatória, exceto para recorrência e autorização direta.',
     '020': u'Não é permitido realizar autorização para o status da transação. (020-Status não permite autorização)',
     '021': u'Não é permitido realizar autorização, pois o prazo está vencido. (021-Prazo de autorização vencido)',
     '022': u'EC não possui permissão para realizar a autorização.(022-EC não autorizado)',
@@ -88,6 +89,7 @@ class CieloToken(object):
         self.expiration = '%s%s' % (exp_year, exp_month)
         self.card_holders_name = card_holders_name
         self.card_number = card_number
+        self.sandbox = sandbox
 
     def create_token(self):
         self.payload = open(
@@ -111,7 +113,166 @@ class CieloToken(object):
         return True
 
 
-class PaymentAttempt(object):
+class Attempt(object):
+    template = 'authorize.xml'
+
+    def get_authorized(self):
+        self.date = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+        self.payload = open(
+            os.path.join(
+                os.path.dirname(os.path.abspath(__file__)),
+                self.template),
+            'r').read() % self.__dict__
+
+        self.response = requests.post(
+            self.url,
+            data={'mensagem': self.payload, })
+
+        self.dom = xml.dom.minidom.parseString(self.response.content)
+
+        if self.dom.getElementsByTagName('erro'):
+            self.error = self.dom.getElementsByTagName(
+                'erro')[0].getElementsByTagName('codigo')[0].childNodes[0].data
+            self.error_id = None
+            self.error_message = CIELO_MSG_ERRORS[self.error]
+            raise GetAuthorizedException(self.error_id, self.error_message)
+
+        self.status = int(
+            self.dom.getElementsByTagName('status')[0].childNodes[0].data)
+        if self.status != 4:
+            self.error_id = self.dom.getElementsByTagName(
+                'autorizacao')[0].getElementsByTagName(
+                    'codigo')[0].childNodes[0].data
+            self.error_message = self.dom.getElementsByTagName(
+                'autorizacao')[0].getElementsByTagName(
+                    'mensagem')[0].childNodes[0].data
+            self._authorized = False
+            raise GetAuthorizedException(self.error_id, self.error_message)
+
+        self.transaction_id = self.dom.getElementsByTagName(
+            'tid')[0].childNodes[0].data
+        self.pan = self.dom.getElementsByTagName('pan')[0].childNodes[0].data
+
+        self._authorized = True
+        return True
+
+    def capture(self):
+        assert self._authorized, \
+            u'get_authorized(...) must be called before capture(...)'
+
+        payload = open(
+            os.path.join(
+                os.path.dirname(os.path.abspath(__file__)), 'capture.xml'),
+            'r').read() % self.__dict__
+
+        response = requests.post(self.url, data={
+            'mensagem': payload,
+        })
+
+        dom = xml.dom.minidom.parseString(response.content)
+        status = int(dom.getElementsByTagName('status')[0].childNodes[0].data)
+
+        if status != 6:
+            # 6 = capturado
+            raise CaptureException()
+        return True
+
+
+class TokenPaymentAttempt(Attempt):
+    def __init__(
+            self,
+            affiliation_id,
+            token,
+            api_key,
+            total,
+            card_type,
+            order_id,
+            url_redirect,
+            installments=1,
+            transaction=CASH,
+            sandbox=False):
+
+        assert isinstance(total, Decimal), u'total must be an instance of Decimal'
+        assert installments in range(1, 13), u'installments must be a integer between 1 and 12'
+
+        assert (installments == 1 and transaction == CASH) \
+                    or installments > 1 and transaction != CASH, \
+                    u'if installments = 1 then transaction must be None or "cash"'
+
+        self.url = SANDBOX_URL if sandbox else PRODUCTION_URL
+        self.card_type = card_type
+        self.token = token
+        self.affiliation_id = affiliation_id
+        self.api_key = api_key
+        self.transaction = transaction
+        self.transaction_type = transaction  # para manter assinatura do pyrcws
+        self.total = moneyfmt(total, sep='', dp='')
+        self.installments = installments
+        self.order_id = order_id
+        self._authorized = False
+        self.sandbox = sandbox
+        self.url_redirect = url_redirect
+        self.template = 'authorize_token.xml'
+
+    # def get_authorized(self):
+    #     self.date = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+    #     self.payload = open(
+    #         os.path.join(
+    #             os.path.dirname(os.path.abspath(__file__)),
+    #             'authorize_token.xml'),
+    #         'r').read() % self.__dict__
+
+    #     self.response = requests.post(
+    #         self.url,
+    #         data={'mensagem': self.payload, })
+
+    #     self.dom = xml.dom.minidom.parseString(self.response.content)
+
+    #     if self.dom.getElementsByTagName('erro'):
+    #         self.error = self.dom.getElementsByTagName(
+    #             'erro')[0].getElementsByTagName('codigo')[0].childNodes[0].data
+    #         self.error_id = None
+    #         self.error_message = CIELO_MSG_ERRORS[self.error]
+    #         raise GetAuthorizedException(self.error_id, self.error_message)
+
+    #     self.status = int(
+    #         self.dom.getElementsByTagName('status')[0].childNodes[0].data)
+    #     if self.status != 4:
+    #         self.error_id = self.dom.getElementsByTagName(
+    #             'autorizacao')[0].getElementsByTagName(
+    #                 'codigo')[0].childNodes[0].data
+    #         self.error_message = self.dom.getElementsByTagName(
+    #             'autorizacao')[0].getElementsByTagName(
+    #                 'mensagem')[0].childNodes[0].data
+    #         self._authorized = False
+    #         raise GetAuthorizedException(self.error_id, self.error_message)
+
+    #     self.transaction_id = self.dom.getElementsByTagName(
+    #         'tid')[0].childNodes[0].data
+    #     self.pan = self.dom.getElementsByTagName('pan')[0].childNodes[0].data
+
+    #     self._authorized = True
+    #     return True
+
+    # def capture(self):
+    #     assert self._authorized, u'get_authorized(...) must be called before capture(...)'
+
+    #     payload = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'capture.xml'), 'r').read() % self.__dict__
+
+    #     response = requests.post(self.url, data={
+    #         'mensagem': payload,
+    #     })
+
+    #     dom = xml.dom.minidom.parseString(response.content)
+    #     status = int(dom.getElementsByTagName('status')[0].childNodes[0].data)
+
+    #     if status != 6:
+    #         # 6 = capturado
+    #         raise CaptureException()
+    #     return True
+
+
+class PaymentAttempt(Attempt):
     def __init__(
             self,
             affiliation_id,
@@ -154,57 +315,58 @@ class PaymentAttempt(object):
         self._authorized = False
 
         self.sandbox = sandbox
+        self.template = 'authorize.xml'
 
-    def get_authorized(self):
-        self.date = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
-        self.payload = open(
-            os.path.join(os.path.dirname(os.path.abspath(__file__)), 'authorize.xml'), 'r').read() % self.__dict__
+    # def get_authorized(self):
+    #     self.date = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+    #     self.payload = open(
+    #         os.path.join(os.path.dirname(os.path.abspath(__file__)), 'authorize.xml'), 'r').read() % self.__dict__
 
-        self.response = requests.post(
-            self.url,
-            data={'mensagem': self.payload, })
+    #     self.response = requests.post(
+    #         self.url,
+    #         data={'mensagem': self.payload, })
 
-        self.dom = xml.dom.minidom.parseString(self.response.content)
+    #     self.dom = xml.dom.minidom.parseString(self.response.content)
 
-        if self.dom.getElementsByTagName('erro'):
-            self.error = self.dom.getElementsByTagName(
-                'erro')[0].getElementsByTagName('codigo')[0].childNodes[0].data
-            self.error_id = None
-            self.error_message = CIELO_MSG_ERRORS[self.error]
-            raise GetAuthorizedException(self.error_id, self.error_message)
+    #     if self.dom.getElementsByTagName('erro'):
+    #         self.error = self.dom.getElementsByTagName(
+    #             'erro')[0].getElementsByTagName('codigo')[0].childNodes[0].data
+    #         self.error_id = None
+    #         self.error_message = CIELO_MSG_ERRORS[self.error]
+    #         raise GetAuthorizedException(self.error_id, self.error_message)
 
-        self.status = int(
-            self.dom.getElementsByTagName('status')[0].childNodes[0].data)
-        if self.status != 4:
-            self.error_id = self.dom.getElementsByTagName(
-                'autorizacao')[0].getElementsByTagName(
-                    'codigo')[0].childNodes[0].data
-            self.error_message = self.dom.getElementsByTagName(
-                'autorizacao')[0].getElementsByTagName(
-                    'mensagem')[0].childNodes[0].data
-            self._authorized = False
-            raise GetAuthorizedException(self.error_id, self.error_message)
+    #     self.status = int(
+    #         self.dom.getElementsByTagName('status')[0].childNodes[0].data)
+    #     if self.status != 4:
+    #         self.error_id = self.dom.getElementsByTagName(
+    #             'autorizacao')[0].getElementsByTagName(
+    #                 'codigo')[0].childNodes[0].data
+    #         self.error_message = self.dom.getElementsByTagName(
+    #             'autorizacao')[0].getElementsByTagName(
+    #                 'mensagem')[0].childNodes[0].data
+    #         self._authorized = False
+    #         raise GetAuthorizedException(self.error_id, self.error_message)
 
-        self.transaction_id = self.dom.getElementsByTagName(
-            'tid')[0].childNodes[0].data
-        self.pan = self.dom.getElementsByTagName('pan')[0].childNodes[0].data
+    #     self.transaction_id = self.dom.getElementsByTagName(
+    #         'tid')[0].childNodes[0].data
+    #     self.pan = self.dom.getElementsByTagName('pan')[0].childNodes[0].data
 
-        self._authorized = True
-        return True
+    #     self._authorized = True
+    #     return True
 
-    def capture(self):
-        assert self._authorized, u'get_authorized(...) must be called before capture(...)'
+    # def capture(self):
+    #     assert self._authorized, u'get_authorized(...) must be called before capture(...)'
 
-        payload = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'capture.xml'), 'r').read() % self.__dict__
+    #     payload = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'capture.xml'), 'r').read() % self.__dict__
 
-        response = requests.post(self.url, data={
-            'mensagem': payload,
-        })
+    #     response = requests.post(self.url, data={
+    #         'mensagem': payload,
+    #     })
 
-        dom = xml.dom.minidom.parseString(response.content)
-        status = int(dom.getElementsByTagName('status')[0].childNodes[0].data)
+    #     dom = xml.dom.minidom.parseString(response.content)
+    #     status = int(dom.getElementsByTagName('status')[0].childNodes[0].data)
 
-        if status != 6:
-            # 6 = capturado
-            raise CaptureException()
-        return True
+    #     if status != 6:
+    #         # 6 = capturado
+    #         raise CaptureException()
+    #     return True
