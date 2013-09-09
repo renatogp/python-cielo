@@ -82,15 +82,77 @@ Para criar um novo token junto a Cielo: ::
         'affiliation_id': '1234567890',
         'api_key': 'ABCDEFG123456789',
         'card_type': VISA,
-        'total': Decimal('1.00'),
         'card_number': '4012001037141112',
         'exp_month': 1,
         'exp_year': 2010,
         'card_holders_name': 'JOAO DA SILVA',
+        'sandbox': True,
     }
 
-    token = CieloToken(**params)
-    token.create_token()
+    cielo_token = CieloToken(**params)
+    cielo_token.create_token()
+
+Autorização e captura com token
+-------------------------------
+
+A partir da instancia CieloToken como variável ``cielo_token``: ::
+
+    from cielo import TokenPaymentAttempt, CASH
+
+    params = {
+        'affiliation_id': '1234567890',
+        'api_key': 'ABCDEFG123456789',
+        'card_type': cielo_token.card_type,
+        'transaction': CASH,
+        'total': Decimal('1.00'),
+        'order_id': '7DSD163AH1',
+        'installments': 1,
+        'token': cielo_token.token,
+        'sandbox': True,
+        'url_redirect': 'http://localhost:8000/',
+    }
+
+    attempt = TokenPaymentAttempt(**params)
+    try:
+        attempt.get_authorized()
+    except GetAuthorizedException, e:
+        print u'Não foi possível processar: %s' % e
+    else:
+        attempt.capture()
+
+Parâmetros
+^^^^^^^^^^
+Verifique abaixo a lista de parâmetros esperados no construtor da classe ``CieloToken``.
+
+==========================  ===============================================  ======================================
+Atributo                    Descrição                                        Observações
+==========================  ===============================================  ======================================
+``affiliation_id``          Número de afiliação junto à Cielo
+``api_key``                 Chave de acesso para o webservice
+``card_type``               Bandeira do cartão                               Veja as bandeiras suportadas
+``card_number``             Número do cartão (sem pontos)
+``exp_month``               Mês de vencimento
+``exp_year``                Ano de vencimento
+``card_holders_name``       Nome impresso no cartão
+``sandbox``                 Ambiente de desenvolvimento                      Default: ``False``
+==========================  ===============================================  ======================================
+
+Verifique abaixo a lista de parâmetros esperados no construtor da classe ``TokenPaymentAttempt``.
+
+==========================  ===============================================  ======================================
+Atributo                    Descrição                                        Observações
+==========================  ===============================================  ======================================
+``affiliation_id``          Número de afiliação junto à Cielo
+``api_key``                 Chave de acesso para o webservice
+``card_type``               Bandeira do cartão                               Veja as bandeiras suportadas
+``total``                   Valor total do pedido (utilizar ``Decimal``)
+``token``                   Token gerado pela Cielo
+``url_redirect``            URL para redirecionamento
+``order_id``                Identificador único do pedido
+``installments``            Número de parcelas
+``transaction``             Tipo da transação / parcelamento                 Veja os tipos de transações suportados
+``sandbox``                 Ambiente de desenvolvimento                      Default: ``False``
+==========================  ===============================================  ======================================
 
 Bandeiras suportadas
 ^^^^^^^^^^^^^^^^^^^^
