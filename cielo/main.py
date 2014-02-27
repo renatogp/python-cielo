@@ -80,6 +80,9 @@ class CieloToken(object):
         if len(str(exp_year)) == 2:
             exp_year = '20%s' % exp_year
 
+        if len(str(exp_month)) == 1:
+            exp_month = '0%s' % exp_month
+
         self.url = SANDBOX_URL if sandbox else PRODUCTION_URL
         self.card_type = card_type
         self.affiliation_id = affiliation_id
@@ -99,6 +102,7 @@ class CieloToken(object):
         self.response = requests.post(
             self.url,
             data={'mensagem': self.payload, })
+
         self.dom = xml.dom.minidom.parseString(self.response.content)
 
         if self.dom.getElementsByTagName('erro'):
