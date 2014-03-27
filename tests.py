@@ -4,6 +4,7 @@ from cielo import *
 
 
 class MainTest(unittest.TestCase):
+
     def test_01_payment_attempt_authorized(self):
         params = {
             'affiliation_id': '1006993069',
@@ -126,6 +127,38 @@ class MainTest(unittest.TestCase):
         attempt = TokenPaymentAttempt(**params)
         self.assertTrue(attempt.get_authorized())
         self.assertTrue(attempt.capture())
+
+    def test_07_payment_canceled(self):
+        params = {
+            'affiliation_id': '1006993069',
+            'api_key': '25fbb99741c739dd84d7b06ec78c9bac718838630f30b112d033ce2e621b34f3',
+            'card_type': VISA,
+            'total': Decimal('1.00'),  # when amount ends with .00 attempt is automatically authorized
+            'order_id': '7DSD163AH1',  # strings are allowed here
+            'card_number': '4012001037141112',
+            'cvc2': 423,
+            'exp_month': 1,
+            'exp_year': 2010,
+            'card_holders_name': 'JOAO DA SILVA',
+            'installments': 1,
+            'transaction': CASH,
+            'sandbox': True,
+        }
+
+        attempt = PaymentAttempt(**params)
+        self.assertTrue(attempt.get_authorized())
+        self.assertTrue(attempt.capture())
+
+        cancel_params = {
+            'sandbox': True,
+            'transaction_id': attempt.transaction_id,
+            'amount_to_cancel': Decimal('1.00'),
+            'affiliation_id': '1006993069',
+            'api_key': '25fbb99741c739dd84d7b06ec78c9bac718838630f30b112d033ce2e621b34f3',
+        }
+
+        cancel = CancelTransaction(**cancel_params)
+        self.assertTrue(cancel.cancel())
 
 if __name__ == '__main__':
     unittest.main()

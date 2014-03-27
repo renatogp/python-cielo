@@ -6,6 +6,7 @@ import xml.dom.minidom
 from decimal import Decimal
 from util import moneyfmt
 
+
 VISA, MASTERCARD, DINERS, DISCOVER, ELO, AMEX = 'visa', \
     'mastercard', 'diners', 'discover', 'elo', 'amex'
 CARD_TYPE_C = (
@@ -115,6 +116,53 @@ class CieloToken(object):
         self.card = self.dom.getElementsByTagName(
             'numero-cartao-truncado')[0].childNodes[0].data
         return True
+
+
+class CancelTransaction(object):
+    template = 'cancel.xml'
+
+    def __init__(
+            self,
+            affiliation_id,
+            api_key,
+            transaction_id,
+            amount_to_cancel,
+            sandbox=False):
+
+        assert isinstance(amount_to_cancel, Decimal), u'total must be an instance of Decimal'
+        self.url = SANDBOX_URL if sandbox else PRODUCTION_URL
+        self.affiliation_id = affiliation_id
+        self.api_key = api_key
+        self.amount_to_cancel = moneyfmt(amount_to_cancel, sep='', dp='')
+        self.transaction_id = transaction_id
+        self.sandbox = sandbox
+
+    def cancel(self, **kwargs):
+        print self.url
+        self.date = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+        self.payload = open(
+            os.path.join(
+                os.path.dirname(os.path.abspath(__file__)), 'cancel.xml'),
+            'r').read() % self.__dict__
+        self.response = requests.post(
+            self.url,
+            data={'mensagem': self.payload, })
+
+        self.dom = xml.dom.minidom.parseString(self.response.content)
+        self.status = int(
+            self.dom.getElementsByTagName('status')[0].childNodes[0].data)
+
+        if self.dom.getElementsByTagName('erro'):
+            self.error = self.dom.getElementsByTagName(
+                'erro')[0].getElementsByTagName('codigo')[0].childNodes[0].data
+            self.error_id = None
+            self.error_message = CIELO_MSG_ERRORS[self.error]
+            raise GetAuthorizedException(self.error_id, self.error_message)
+
+        if self.status in [9, 12]:
+            self.canceled = True
+            return True
+        return False
 
 
 class Attempt(object):
