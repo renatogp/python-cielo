@@ -152,7 +152,6 @@ class MainTest(unittest.TestCase):
         cancel_params = {
             'sandbox': True,
             'transaction_id': attempt.transaction_id,
-            'amount_to_cancel': Decimal('1.00'),
             'affiliation_id': '1006993069',
             'api_key': '25fbb99741c739dd84d7b06ec78c9bac718838630f30b112d033ce2e621b34f3',
         }

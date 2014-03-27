@@ -126,19 +126,16 @@ class CancelTransaction(object):
             affiliation_id,
             api_key,
             transaction_id,
-            amount_to_cancel,
+            amount_to_cancel=None,
             sandbox=False):
 
-        assert isinstance(amount_to_cancel, Decimal), u'total must be an instance of Decimal'
         self.url = SANDBOX_URL if sandbox else PRODUCTION_URL
         self.affiliation_id = affiliation_id
         self.api_key = api_key
-        self.amount_to_cancel = moneyfmt(amount_to_cancel, sep='', dp='')
         self.transaction_id = transaction_id
         self.sandbox = sandbox
 
     def cancel(self, **kwargs):
-        print self.url
         self.date = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
         self.payload = open(
             os.path.join(
