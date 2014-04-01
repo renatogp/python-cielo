@@ -8,7 +8,14 @@ Installation
 ^^^^^^^^^^^^^
 Use ``PIP`` or ``easy_install``: ::
 
-    pip install python-cielo
+    pip install -e git+git://github.com/guilhermetavares/python-cielo.git#egg=python-cielo
+
+
+Tests
+ˆˆˆˆˆ
+For tests: ::
+
+    python tests.py
 
 
 Documentation
