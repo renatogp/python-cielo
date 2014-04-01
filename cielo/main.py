@@ -144,10 +144,8 @@ class CancelTransaction(object):
         self.response = requests.post(
             self.url,
             data={'mensagem': self.payload, })
-
-        self.dom = xml.dom.minidom.parseString(self.response.content)
-        self.status = int(
-            self.dom.getElementsByTagName('status')[0].childNodes[0].data)
+        self.content = self.response.content
+        self.dom = xml.dom.minidom.parseString(self.content)
 
         if self.dom.getElementsByTagName('erro'):
             self.error = self.dom.getElementsByTagName(
@@ -155,6 +153,9 @@ class CancelTransaction(object):
             self.error_id = None
             self.error_message = CIELO_MSG_ERRORS[self.error]
             raise GetAuthorizedException(self.error_id, self.error_message)
+
+        self.status = int(
+            self.dom.getElementsByTagName('status')[0].childNodes[0].data)
 
         if self.status in [9, 12]:
             self.canceled = True
