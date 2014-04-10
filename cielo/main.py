@@ -118,6 +118,40 @@ class CieloToken(object):
         return True
 
 
+class ConsultTransaction(object):
+    template = 'templates/consult.xml'
+
+    def __init__(
+            self,
+            affiliation_id,
+            api_key,
+            transaction_id,
+            sandbox=False):
+        self.url = SANDBOX_URL if sandbox else PRODUCTION_URL
+        self.affiliation_id = affiliation_id
+        self.api_key = api_key
+        self.transaction_id = transaction_id
+
+    def consult(self, **kwargs):
+        self.date = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+        self.payload = open(
+            os.path.join(
+                os.path.dirname(os.path.abspath(__file__)), self.template),
+            'r').read() % self.__dict__
+        self.response = requests.post(
+            self.url,
+            data={'mensagem': self.payload, })
+        self.content = self.response.content
+        self.dom = xml.dom.minidom.parseString(self.content)
+
+    def assert_transaction_value(self, value):
+        self.consult()
+
+        transaction_value = self.dom.getElementsByTagName(
+            'valor')[0].childNodes[0].data
+        assert int(transaction_value) >= int(moneyfmt(value, sep='', dp=''))
+
+
 class CancelTransaction(object):
     template = 'templates/cancel.xml'
 
