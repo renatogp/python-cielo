@@ -146,10 +146,12 @@ class ConsultTransaction(object):
 
     def assert_transaction_value(self, value):
         self.consult()
-
-        transaction_value = self.dom.getElementsByTagName(
-            'valor')[0].childNodes[0].data
-        assert int(transaction_value) >= int(moneyfmt(value, sep='', dp=''))
+        try:
+            transaction_value = self.dom.getElementsByTagName(
+                'valor')[0].childNodes[0].data
+            return int(transaction_value) >= int(moneyfmt(value, sep='', dp=''))
+        except Exception, e:
+            return False
 
 
 class CancelTransaction(object):
@@ -176,6 +178,7 @@ class CancelTransaction(object):
             self.template = 'templates/cancel_with_amount.xml'
 
     def cancel(self, **kwargs):
+
         self.date = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
         self.payload = open(
             os.path.join(
@@ -200,6 +203,10 @@ class CancelTransaction(object):
         if self.status in [9, 12]:
             self.canceled = True
             return True
+
+        if 'Cancelamento parcial realizado com sucesso' in self.response.content:
+            return True
+
         return False
 
 
