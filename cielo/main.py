@@ -99,7 +99,7 @@ class CieloToken(object):
         self.payload = open(
             os.path.join(
                 os.path.dirname(os.path.abspath(__file__)),
-                'token.xml'), 'r').read() % self.__dict__
+                'templates/token.xml'), 'r').read() % self.__dict__
         self.response = requests.post(
             self.url,
             data={'mensagem': self.payload, })
@@ -119,7 +119,7 @@ class CieloToken(object):
 
 
 class CancelTransaction(object):
-    template = 'cancel.xml'
+    template = 'templates/cancel.xml'
 
     def __init__(
             self,
@@ -135,11 +135,17 @@ class CancelTransaction(object):
         self.transaction_id = transaction_id
         self.sandbox = sandbox
 
+        self.template = 'templates/cancel.xml'
+        if amount_to_cancel:
+            assert isinstance(amount_to_cancel, Decimal), u'amount must be an instance of Decimal'
+            self.amount_to_cancel = moneyfmt(amount_to_cancel, sep='', dp='')
+            self.template = 'templates/cancel_with_amount.xml'
+
     def cancel(self, **kwargs):
         self.date = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
         self.payload = open(
             os.path.join(
-                os.path.dirname(os.path.abspath(__file__)), 'cancel.xml'),
+                os.path.dirname(os.path.abspath(__file__)), self.template),
             'r').read() % self.__dict__
         self.response = requests.post(
             self.url,
@@ -164,7 +170,7 @@ class CancelTransaction(object):
 
 
 class Attempt(object):
-    template = 'authorize.xml'
+    template = 'templates/authorize.xml'
 
     def get_authorized(self):
         self.date = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
@@ -212,7 +218,7 @@ class Attempt(object):
 
         payload = open(
             os.path.join(
-                os.path.dirname(os.path.abspath(__file__)), 'capture.xml'),
+                os.path.dirname(os.path.abspath(__file__)), 'templates/capture.xml'),
             'r').read() % self.__dict__
 
         response = requests.post(self.url, data={
@@ -262,7 +268,7 @@ class TokenPaymentAttempt(Attempt):
         self._authorized = False
         self.sandbox = sandbox
         self.url_redirect = url_redirect
-        self.template = 'authorize_token.xml'
+        self.template = 'templates/authorize_token.xml'
 
 
 class PaymentAttempt(Attempt):
@@ -308,4 +314,4 @@ class PaymentAttempt(Attempt):
         self._authorized = False
 
         self.sandbox = sandbox
-        self.template = 'authorize.xml'
+        self.template = 'templates/authorize.xml'

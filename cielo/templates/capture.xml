@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<requisicao-captura id="3" versao="1.1.1">
+    <tid>%(transaction_id)s</tid>
+    <dados-ec>
+        <numero>%(affiliation_id)s</numero>
+        <chave>%(api_key)s</chave>
+    </dados-ec>
+</requisicao-captura>

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<requisicao-transacao id="a97ab62a-7956-41ea-b03f-c2e9f612c293" versao="1.2.1">
+    <dados-ec>
+        <numero>%(affiliation_id)s</numero>
+        <chave>%(api_key)s</chave>
+    </dados-ec>
+    <dados-portador>
+        <token>%(token)s</token>
+    </dados-portador>
+    <dados-pedido>
+        <numero>%(order_id)s</numero>
+        <valor>%(total)s</valor>
+        <moeda>986</moeda>
+        <data-hora>%(date)s</data-hora>
+        <idioma>PT</idioma>
+    </dados-pedido>
+    <forma-pagamento>
+        <bandeira>%(card_type)s</bandeira>
+        <produto>%(transaction_type)s</produto>
+        <parcelas>%(installments)s</parcelas>
+    </forma-pagamento>
+    <url-retorno>%(url_redirect)s</url-retorno>
+    <autorizar>3</autorizar>
+    <capturar>false</capturar>
+</requisicao-transacao>
