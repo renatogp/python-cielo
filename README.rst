@@ -12,7 +12,7 @@ Use ``PIP`` or ``easy_install``: ::
 
 
 Tests
-ˆˆˆˆˆ
+^^^^^
 For tests: ::
 
     python tests.py
