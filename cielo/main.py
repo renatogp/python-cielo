@@ -18,11 +18,12 @@ CARD_TYPE_C = (
     (AMEX, u'American express'),
 )
 
-CASH, INSTALLMENT_STORE, INSTALLMENT_CIELO = 1, 2, 3
+CASH, INSTALLMENT_STORE, INSTALLMENT_CIELO, DEBT = 1, 2, 3, 'A'
 TRANSACTION_TYPE_C = (
     (CASH, u'À vista'),
     (INSTALLMENT_STORE, u'Parcelado (estabelecimento)'),
     (INSTALLMENT_CIELO, u'Parcelado (Cielo)'),
+    (DEBT, u'Débito em conta'),
 )
 
 SANDBOX_URL = 'https://qasecommerce.cielo.com.br/servicos/ecommwsec.do'
@@ -132,6 +133,28 @@ class ConsultTransaction(object):
         self.api_key = api_key
         self.transaction_id = transaction_id
 
+    def capture(self):
+        assert self._authorized, \
+            u'get_authorized(...) must be called before capture(...)'
+
+        payload = open(
+            os.path.join(
+                os.path.dirname(os.path.abspath(__file__)),
+                'templates/capture.xml'),
+            'r').read() % self.__dict__
+
+        response = requests.post(self.url, data={
+            'mensagem': payload,
+        })
+
+        dom = xml.dom.minidom.parseString(response.content)
+        status = int(dom.getElementsByTagName('status')[0].childNodes[0].data)
+
+        if status != 6:
+            # 6 = capturado
+            raise CaptureException()
+        return True
+
     def consult(self, **kwargs):
         self.date = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
         self.payload = open(
@@ -144,13 +167,24 @@ class ConsultTransaction(object):
         self.content = self.response.content
         self.dom = xml.dom.minidom.parseString(self.content)
 
+    def assert_transaction_is_paid(self):
+        self.consult()
+        self.status = int(
+            self.dom.getElementsByTagName('status')[0].childNodes[0].data)
+        if self.status in [2, 4, 6]:
+            if self.status != 6:
+                self.capture()
+            return True
+        return False
+
     def assert_transaction_value(self, value):
         self.consult()
         try:
             transaction_value = self.dom.getElementsByTagName(
                 'valor')[0].childNodes[0].data
-            return int(transaction_value) >= int(moneyfmt(value, sep='', dp=''))
-        except Exception, e:
+            return int(transaction_value) >= int(moneyfmt(
+                value, sep='', dp=''))
+        except Exception:
             return False
 
 
@@ -356,3 +390,67 @@ class PaymentAttempt(Attempt):
 
         self.sandbox = sandbox
         self.template = 'templates/authorize.xml'
+
+
+class DebtAttempt(Attempt):
+    def __init__(
+            self,
+            affiliation_id,
+            api_key,
+            total,
+            card_type,
+            order_id,
+            card_number,
+            cvc2,
+            exp_month,
+            exp_year,
+            card_holders_name,
+            url_redirect,
+            sandbox=False):
+
+        assert isinstance(total, Decimal), u'total must be an instance of Decimal'
+
+        if len(str(exp_year)) == 2:
+            exp_year = '20%s' % exp_year
+
+        self.url_redirect = url_redirect
+        self.url = SANDBOX_URL if sandbox else PRODUCTION_URL
+        self.card_type = card_type
+        self.affiliation_id = affiliation_id
+        self.api_key = api_key
+        self.total = moneyfmt(total, sep='', dp='')
+        self.order_id = order_id
+        self.card_number = card_number
+        self.cvc2 = cvc2
+        self.exp_month = exp_month
+        self.exp_year = exp_year
+        self.expiration = '%s%s' % (exp_year, exp_month)
+        self.card_holders_name = card_holders_name
+        self._authorized = False
+
+        self.sandbox = sandbox
+        self.template = 'templates/authorize_debt.xml'
+
+    def get_authorized(self):
+        self.date = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+        self.payload = open(
+            os.path.join(
+                os.path.dirname(os.path.abspath(__file__)),
+                self.template),
+            'r').read() % self.__dict__
+
+        self.response = requests.post(
+            self.url,
+            data={'mensagem': self.payload, })
+
+        self.dom = xml.dom.minidom.parseString(self.response.content)
+
+        if self.dom.getElementsByTagName('erro'):
+            self.error = self.dom.getElementsByTagName(
+                'erro')[0].getElementsByTagName('codigo')[0].childNodes[0].data
+            self.error_id = None
+            self.error_message = CIELO_MSG_ERRORS[self.error]
+            raise GetAuthorizedException(self.error_id, self.error_message)
+
+        self.url_autenticacao = self.dom.getElementsByTagName('url-autenticacao')[0].childNodes[0].data
+        return True

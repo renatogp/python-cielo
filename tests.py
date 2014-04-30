@@ -244,5 +244,18 @@ class MainTest(unittest.TestCase):
         consult = ConsultTransaction(**consult_params)
         consult.assert_transaction_value(Decimal('1.00'))
 
+    def test_10_consult_and_capture(self):
+        transaction_id = '1006993069114925A001'
+
+        params = {
+            'sandbox': True,
+            'transaction_id': transaction_id,
+            'affiliation_id': CIELO_AFFILIATION_ID,
+            'api_key': CIELO_API_KEY,
+        }
+
+        consult = ConsultTransaction(**params)
+        consult.assert_transaction_is_paid()
+
 if __name__ == '__main__':
     unittest.main()
