@@ -89,7 +89,7 @@ class BaseCieloObject(object):
         self.payload = open(
             os.path.join(
                 os.path.dirname(os.path.abspath(__file__)),
-                'templates/token.xml'), 'r').read() % self.__dict__
+                self.template), 'r').read() % self.__dict__
         self.response = self.session.post(
             self.url,
             data={'mensagem': self.payload, })
@@ -235,6 +235,8 @@ class BaseCieloObject(object):
 
 
 class CieloToken(BaseCieloObject):
+    template = 'templates/token.xml'
+
     def __init__(
             self,
             affiliation_id,
