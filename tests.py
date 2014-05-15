@@ -257,5 +257,23 @@ class MainTest(unittest.TestCase):
         consult = ConsultTransaction(**params)
         consult.assert_transaction_is_paid()
 
+    def test_11_debt(self):
+        params = {
+            'affiliation_id': CIELO_AFFILIATION_ID,
+            'api_key': CIELO_API_KEY,
+            'card_type': VISA,
+            'total': Decimal('1.00'),
+            'order_id': '7DSD163AH1',
+            'card_number': '4012001037141112',
+            'cvc2': 423,
+            'exp_month': 1,
+            'exp_year': 2010,
+            'card_holders_name': 'JOAO DA SILVA',
+            'sandbox': True,
+            'url_redirect': 'http://localhost:8000/'
+        }
+        debt = DebtAttempt(**params)
+        self.assertTrue(debt.get_authorized())
+
 if __name__ == '__main__':
     unittest.main()

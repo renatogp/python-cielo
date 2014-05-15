@@ -1,7 +1,10 @@
 # coding: utf-8
 from datetime import datetime
 import os
+import ssl
 import requests
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.poolmanager import PoolManager
 import xml.dom.minidom
 from decimal import Decimal
 from util import moneyfmt
@@ -50,6 +53,14 @@ CIELO_MSG_ERRORS = {
 }
 
 
+class CieloHTTPSAdapter(HTTPAdapter):
+    def init_poolmanager(self, connections, maxsize, **kwargs):
+        self.poolmanager = PoolManager(
+            num_pools=connections,
+            maxsize=maxsize,
+            ssl_version=ssl.PROTOCOL_SSLv3, **kwargs)
+
+
 class GetAuthorizedException(Exception):
     def __init__(self, id, message=None):
         self.id = id
@@ -67,41 +78,19 @@ class TokenException(Exception):
     pass
 
 
-class CieloToken(object):
-    def __init__(
-            self,
-            affiliation_id,
-            api_key,
-            card_type,
-            card_number,
-            exp_month,
-            exp_year,
-            card_holders_name,
-            sandbox=False):
+class BaseCieloObject(object):
+    template = ''
 
-        if len(str(exp_year)) == 2:
-            exp_year = '20%s' % exp_year
-
-        if len(str(exp_month)) == 1:
-            exp_month = '0%s' % exp_month
-
-        self.url = SANDBOX_URL if sandbox else PRODUCTION_URL
-        self.card_type = card_type
-        self.affiliation_id = affiliation_id
-        self.api_key = api_key
-        self.exp_month = exp_month
-        self.exp_year = exp_year
-        self.expiration = '%s%s' % (exp_year, exp_month)
-        self.card_holders_name = card_holders_name
-        self.card_number = card_number
-        self.sandbox = sandbox
+    def __init__(self):
+        self.session = requests.Session()
+        self.session.mount('https://', CieloHTTPSAdapter())
 
     def create_token(self):
         self.payload = open(
             os.path.join(
                 os.path.dirname(os.path.abspath(__file__)),
                 'templates/token.xml'), 'r').read() % self.__dict__
-        self.response = requests.post(
+        self.response = self.session.post(
             self.url,
             data={'mensagem': self.payload, })
 
@@ -118,21 +107,6 @@ class CieloToken(object):
             'numero-cartao-truncado')[0].childNodes[0].data
         return True
 
-
-class ConsultTransaction(object):
-    template = 'templates/consult.xml'
-
-    def __init__(
-            self,
-            affiliation_id,
-            api_key,
-            transaction_id,
-            sandbox=False):
-        self.url = SANDBOX_URL if sandbox else PRODUCTION_URL
-        self.affiliation_id = affiliation_id
-        self.api_key = api_key
-        self.transaction_id = transaction_id
-
     def capture(self):
         assert self._authorized, \
             u'get_authorized(...) must be called before capture(...)'
@@ -143,7 +117,7 @@ class ConsultTransaction(object):
                 'templates/capture.xml'),
             'r').read() % self.__dict__
 
-        response = requests.post(self.url, data={
+        response = self.session.post(self.url, data={
             'mensagem': payload,
         })
 
@@ -161,7 +135,7 @@ class ConsultTransaction(object):
             os.path.join(
                 os.path.dirname(os.path.abspath(__file__)), self.template),
             'r').read() % self.__dict__
-        self.response = requests.post(
+        self.response = self.session.post(
             self.url,
             data={'mensagem': self.payload, })
         self.content = self.response.content
@@ -187,30 +161,6 @@ class ConsultTransaction(object):
         except Exception:
             return False
 
-
-class CancelTransaction(object):
-    template = 'templates/cancel.xml'
-
-    def __init__(
-            self,
-            affiliation_id,
-            api_key,
-            transaction_id,
-            amount_to_cancel=None,
-            sandbox=False):
-
-        self.url = SANDBOX_URL if sandbox else PRODUCTION_URL
-        self.affiliation_id = affiliation_id
-        self.api_key = api_key
-        self.transaction_id = transaction_id
-        self.sandbox = sandbox
-
-        self.template = 'templates/cancel.xml'
-        if amount_to_cancel:
-            assert isinstance(amount_to_cancel, Decimal), u'amount must be an instance of Decimal'
-            self.amount_to_cancel = moneyfmt(amount_to_cancel, sep='', dp='')
-            self.template = 'templates/cancel_with_amount.xml'
-
     def cancel(self, **kwargs):
 
         self.date = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
@@ -218,7 +168,7 @@ class CancelTransaction(object):
             os.path.join(
                 os.path.dirname(os.path.abspath(__file__)), self.template),
             'r').read() % self.__dict__
-        self.response = requests.post(
+        self.response = self.session.post(
             self.url,
             data={'mensagem': self.payload, })
         self.content = self.response.content
@@ -243,10 +193,6 @@ class CancelTransaction(object):
 
         return False
 
-
-class Attempt(object):
-    template = 'templates/authorize.xml'
-
     def get_authorized(self):
         self.date = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
         self.payload = open(
@@ -255,7 +201,7 @@ class Attempt(object):
                 self.template),
             'r').read() % self.__dict__
 
-        self.response = requests.post(
+        self.response = self.session.post(
             self.url,
             data={'mensagem': self.payload, })
 
@@ -287,29 +233,81 @@ class Attempt(object):
         self._authorized = True
         return True
 
-    def capture(self):
-        assert self._authorized, \
-            u'get_authorized(...) must be called before capture(...)'
 
-        payload = open(
-            os.path.join(
-                os.path.dirname(os.path.abspath(__file__)), 'templates/capture.xml'),
-            'r').read() % self.__dict__
+class CieloToken(BaseCieloObject):
+    def __init__(
+            self,
+            affiliation_id,
+            api_key,
+            card_type,
+            card_number,
+            exp_month,
+            exp_year,
+            card_holders_name,
+            sandbox=False):
+        super(CieloToken, self).__init__()
 
-        response = requests.post(self.url, data={
-            'mensagem': payload,
-        })
+        if len(str(exp_year)) == 2:
+            exp_year = '20%s' % exp_year
 
-        dom = xml.dom.minidom.parseString(response.content)
-        status = int(dom.getElementsByTagName('status')[0].childNodes[0].data)
+        if len(str(exp_month)) == 1:
+            exp_month = '0%s' % exp_month
 
-        if status != 6:
-            # 6 = capturado
-            raise CaptureException()
-        return True
+        self.url = SANDBOX_URL if sandbox else PRODUCTION_URL
+        self.card_type = card_type
+        self.affiliation_id = affiliation_id
+        self.api_key = api_key
+        self.exp_month = exp_month
+        self.exp_year = exp_year
+        self.expiration = '%s%s' % (exp_year, exp_month)
+        self.card_holders_name = card_holders_name
+        self.card_number = card_number
+        self.sandbox = sandbox
 
 
-class TokenPaymentAttempt(Attempt):
+class ConsultTransaction(BaseCieloObject):
+    template = 'templates/consult.xml'
+
+    def __init__(
+            self,
+            affiliation_id,
+            api_key,
+            transaction_id,
+            sandbox=False):
+        super(ConsultTransaction, self).__init__()
+        self.url = SANDBOX_URL if sandbox else PRODUCTION_URL
+        self.affiliation_id = affiliation_id
+        self.api_key = api_key
+        self.transaction_id = transaction_id
+
+
+class CancelTransaction(BaseCieloObject):
+    template = 'templates/cancel.xml'
+
+    def __init__(
+            self,
+            affiliation_id,
+            api_key,
+            transaction_id,
+            amount_to_cancel=None,
+            sandbox=False):
+        super(CancelTransaction, self).__init__()
+        self.url = SANDBOX_URL if sandbox else PRODUCTION_URL
+        self.affiliation_id = affiliation_id
+        self.api_key = api_key
+        self.transaction_id = transaction_id
+        self.sandbox = sandbox
+
+        self.template = 'templates/cancel.xml'
+        if amount_to_cancel:
+            assert isinstance(amount_to_cancel, Decimal), u'amount must be an instance of Decimal'
+            self.amount_to_cancel = moneyfmt(amount_to_cancel, sep='', dp='')
+            self.template = 'templates/cancel_with_amount.xml'
+
+
+class TokenPaymentAttempt(BaseCieloObject):
+    template = 'templates/authorize_token.xml'
+
     def __init__(
             self,
             affiliation_id,
@@ -322,7 +320,7 @@ class TokenPaymentAttempt(Attempt):
             installments=1,
             transaction=CASH,
             sandbox=False):
-
+        super(TokenPaymentAttempt, self).__init__()
         assert isinstance(total, Decimal), u'total must be an instance of Decimal'
         assert installments in range(1, 13), u'installments must be a integer between 1 and 12'
 
@@ -343,10 +341,11 @@ class TokenPaymentAttempt(Attempt):
         self._authorized = False
         self.sandbox = sandbox
         self.url_redirect = url_redirect
-        self.template = 'templates/authorize_token.xml'
 
 
-class PaymentAttempt(Attempt):
+class PaymentAttempt(BaseCieloObject):
+    template = 'templates/authorize.xml'
+
     def __init__(
             self,
             affiliation_id,
@@ -361,6 +360,7 @@ class PaymentAttempt(Attempt):
             exp_year,
             card_holders_name, transaction=CASH, sandbox=False):
 
+        super(PaymentAttempt, self).__init__()
         assert isinstance(total, Decimal), u'total must be an instance of Decimal'
         assert installments in range(1, 13), u'installments must be a integer between 1 and 12'
 
@@ -389,10 +389,11 @@ class PaymentAttempt(Attempt):
         self._authorized = False
 
         self.sandbox = sandbox
-        self.template = 'templates/authorize.xml'
 
 
-class DebtAttempt(Attempt):
+class DebtAttempt(BaseCieloObject):
+    template = 'templates/authorize_debt.xml'
+
     def __init__(
             self,
             affiliation_id,
@@ -407,7 +408,7 @@ class DebtAttempt(Attempt):
             card_holders_name,
             url_redirect,
             sandbox=False):
-
+        super(DebtAttempt, self).__init__()
         assert isinstance(total, Decimal), u'total must be an instance of Decimal'
 
         if len(str(exp_year)) == 2:
@@ -429,7 +430,6 @@ class DebtAttempt(Attempt):
         self._authorized = False
 
         self.sandbox = sandbox
-        self.template = 'templates/authorize_debt.xml'
 
     def get_authorized(self):
         self.date = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
@@ -439,7 +439,7 @@ class DebtAttempt(Attempt):
                 self.template),
             'r').read() % self.__dict__
 
-        self.response = requests.post(
+        self.response = self.session.post(
             self.url,
             data={'mensagem': self.payload, })
 
