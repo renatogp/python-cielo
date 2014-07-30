@@ -49,6 +49,7 @@ CIELO_MSG_ERRORS = {
     '040': u'O cancelamento não pode ser realizado, pois o prazo está vencido.(040-Prazo de cancelamento vencido)',
     '041': u'O atual status da transação não permite cancelament.(041-Status não permite cancelamento)',
     '042': u'Não foi possível realizar o cancelamento.(042-Falha ao cancelar)',
+    '044': u'Para cancelar ou capturar essa transação, envie um e-mail para o Suporte Web Cielo eCommerce (cieloecommerce@cielo.com.br)',
     '099': u'Falha no sistema.(099-Erro inesperado)',
 }
 
