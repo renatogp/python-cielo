@@ -38,18 +38,35 @@ CIELO_MSG_ERRORS = {
     '010': u'A transação, com ou sem cartão, está divergente com a permissão do envio dessa informação. (010-Inconsistência no envio do cartão)',
     '011': u'A transação está configurada com uma modalidade de pagamento não habilitada para a loja. (011-Modalidade não habilitada)',
     '012': u'O número de parcelas solicitado ultrapassa o máximo permitido. (012-Número de parcelas inválido)',
+    '013': u'Flag de autorizacao automatica invalida',
+    '014': u'Autorizacao Direta inválida',
+    '015': u'A solicitação de Autorização Direta está sem cartão',
+    '016': u'O TID fornecido está duplicado',
+    '017': u'Cádigo de segurança ausente',
+    '018': u'Indicador de cádigo de segurança inconsistente',
     '019': u'A URL de Retorno é obrigatória, exceto para recorrência e autorização direta.',
     '020': u'Não é permitido realizar autorização para o status da transação. (020-Status não permite autorização)',
     '021': u'Não é permitido realizar autorização, pois o prazo está vencido. (021-Prazo de autorização vencido)',
     '022': u'EC não possui permissão para realizar a autorização.(022-EC não autorizado)',
+    '025': u'Encaminhamento a autorização não permitido',
     '030': u'A captura não pode ser realizada, pois a transação não está autorizada.(030-Transação não autorizada para captura)',
     '031': u'A captura não pode ser realizada, pois o prazo para captura está vencido.(031-Prazo de captura vencido)',
     '032': u'O valor solicitado para captura não é válido.(032-Valor de captura inválido)',
     '033': u'Não foi possível realizar a captura.(033-Falha ao capturar)',
+    '034': u'Valor da taxa de embarque obrigatório',
+    '035': u'A bandeira utilizada na transação não tem suporte à Taxa de Embarque',
+    '036': u'Produto inválido para utilização da Taxa de Embarque',
     '040': u'O cancelamento não pode ser realizado, pois o prazo está vencido.(040-Prazo de cancelamento vencido)',
     '041': u'O atual status da transação não permite cancelament.(041-Status não permite cancelamento)',
     '042': u'Não foi possível realizar o cancelamento.(042-Falha ao cancelar)',
+    '043': u'O valor que está tentando cancelar supera o valor total capturado da transacao.',
     '044': u'Para cancelar ou capturar essa transação, envie um e-mail para o Suporte Web Cielo eCommerce (cieloecommerce@cielo.com.br)',
+    '051': u'Recorrência Inválida',
+    '052': u'Token Inválido',
+    '053': u'Recorrência não habilitada',
+    '054': u'Transacao com Token invalida',
+    '097': u'Sistema indisponivel',
+    '098': u'Timeout',
     '099': u'Falha no sistema.(099-Erro inesperado)',
 }
 
@@ -179,7 +196,7 @@ class BaseCieloObject(object):
             self.error = self.dom.getElementsByTagName(
                 'erro')[0].getElementsByTagName('codigo')[0].childNodes[0].data
             self.error_id = None
-            self.error_message = CIELO_MSG_ERRORS[self.error]
+            self.error_message = CIELO_MSG_ERRORS.get(self.error, u'Erro não catalogado')
             raise GetAuthorizedException(self.error_id, self.error_message)
 
         self.status = int(
@@ -212,7 +229,7 @@ class BaseCieloObject(object):
             self.error = self.dom.getElementsByTagName(
                 'erro')[0].getElementsByTagName('codigo')[0].childNodes[0].data
             self.error_id = None
-            self.error_message = CIELO_MSG_ERRORS[self.error]
+            self.error_message = CIELO_MSG_ERRORS.get(self.error, u'Erro não catalogado')
             raise GetAuthorizedException(self.error_id, self.error_message)
 
         self.status = int(
@@ -452,7 +469,7 @@ class DebtAttempt(BaseCieloObject):
             self.error = self.dom.getElementsByTagName(
                 'erro')[0].getElementsByTagName('codigo')[0].childNodes[0].data
             self.error_id = None
-            self.error_message = CIELO_MSG_ERRORS[self.error]
+            self.error_message = CIELO_MSG_ERRORS.get(self.error, u'Erro não catalogado')
             raise GetAuthorizedException(self.error_id, self.error_message)
 
         self.url_autenticacao = self.dom.getElementsByTagName('url-autenticacao')[0].childNodes[0].data
