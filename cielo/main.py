@@ -99,9 +99,10 @@ class TokenException(Exception):
 class BaseCieloObject(object):
     template = ''
 
-    def __init__(self):
+    def __init__(self, sandbox=False):
         self.session = requests.Session()
-        self.session.mount('https://', CieloHTTPSAdapter())
+        if not sandbox:
+            self.session.mount('https://', CieloHTTPSAdapter())
 
     def create_token(self):
         self.payload = open(
@@ -232,8 +233,7 @@ class BaseCieloObject(object):
             self.error_message = CIELO_MSG_ERRORS.get(self.error, u'Erro não catalogado')
             raise GetAuthorizedException(self.error_id, self.error_message)
 
-        self.status = int(
-            self.dom.getElementsByTagName('status')[0].childNodes[0].data)
+        self.status = int(self.dom.getElementsByTagName('status')[0].childNodes[0].data)
         if self.status != 4:
             self.error_id = self.dom.getElementsByTagName(
                 'autorizacao')[0].getElementsByTagName(
@@ -244,8 +244,7 @@ class BaseCieloObject(object):
             self._authorized = False
             raise GetAuthorizedException(self.error_id, self.error_message)
 
-        self.transaction_id = self.dom.getElementsByTagName(
-            'tid')[0].childNodes[0].data
+        self.transaction_id = self.dom.getElementsByTagName('tid')[0].childNodes[0].data
         self.pan = self.dom.getElementsByTagName('pan')[0].childNodes[0].data
 
         self._authorized = True
@@ -265,7 +264,7 @@ class CieloToken(BaseCieloObject):
             exp_year,
             card_holders_name,
             sandbox=False):
-        super(CieloToken, self).__init__()
+        super(CieloToken, self).__init__(sandbox=sandbox)
 
         if len(str(exp_year)) == 2:
             exp_year = '20%s' % exp_year
@@ -294,7 +293,7 @@ class ConsultTransaction(BaseCieloObject):
             api_key,
             transaction_id,
             sandbox=False):
-        super(ConsultTransaction, self).__init__()
+        super(ConsultTransaction, self).__init__(sandbox=sandbox)
         self.url = SANDBOX_URL if sandbox else PRODUCTION_URL
         self.affiliation_id = affiliation_id
         self.api_key = api_key
@@ -311,7 +310,7 @@ class CancelTransaction(BaseCieloObject):
             transaction_id,
             amount_to_cancel=None,
             sandbox=False):
-        super(CancelTransaction, self).__init__()
+        super(CancelTransaction, self).__init__(sandbox=sandbox)
         self.url = SANDBOX_URL if sandbox else PRODUCTION_URL
         self.affiliation_id = affiliation_id
         self.api_key = api_key
@@ -340,7 +339,7 @@ class TokenPaymentAttempt(BaseCieloObject):
             installments=1,
             transaction=CASH,
             sandbox=False):
-        super(TokenPaymentAttempt, self).__init__()
+        super(TokenPaymentAttempt, self).__init__(sandbox=sandbox)
         assert isinstance(total, Decimal), u'total must be an instance of Decimal'
         assert installments in range(1, 13), u'installments must be a integer between 1 and 12'
 
@@ -380,7 +379,7 @@ class PaymentAttempt(BaseCieloObject):
             exp_year,
             card_holders_name, transaction=CASH, sandbox=False):
 
-        super(PaymentAttempt, self).__init__()
+        super(PaymentAttempt, self).__init__(sandbox=sandbox)
         assert isinstance(total, Decimal), u'total must be an instance of Decimal'
         assert installments in range(1, 13), u'installments must be a integer between 1 and 12'
 
@@ -428,7 +427,7 @@ class DebtAttempt(BaseCieloObject):
             card_holders_name,
             url_redirect,
             sandbox=False):
-        super(DebtAttempt, self).__init__()
+        super(DebtAttempt, self).__init__(sandbox=sandbox)
         assert isinstance(total, Decimal), u'total must be an instance of Decimal'
 
         if len(str(exp_year)) == 2:
