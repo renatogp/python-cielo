@@ -44,6 +44,7 @@ For send a simple transaction: ::
     attempt.get_authorized()
     attempt.capture()
 
+To see more operations see the file: ``tests.py``
 
 Tests
 ^^^^^
