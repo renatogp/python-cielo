@@ -99,9 +99,12 @@ class TokenException(Exception):
 class BaseCieloObject(object):
     template = ''
 
-    def __init__(self, sandbox=False):
+    def __init__(self, sandbox=False, use_ssl=None):
         self.session = requests.Session()
-        if not sandbox:
+
+        if use_ssl is None:
+            use_ssl = not sandbox
+        if use_ssl:
             self.session.mount('https://', CieloHTTPSAdapter())
 
     def create_token(self):
@@ -263,8 +266,10 @@ class CieloToken(BaseCieloObject):
             exp_month,
             exp_year,
             card_holders_name,
-            sandbox=False):
-        super(CieloToken, self).__init__(sandbox=sandbox)
+            sandbox=False,
+            use_ssl=None,
+        ):
+        super(CieloToken, self).__init__(sandbox=sandbox, use_ssl=use_ssl)
 
         if len(str(exp_year)) == 2:
             exp_year = '20%s' % exp_year
@@ -292,8 +297,10 @@ class ConsultTransaction(BaseCieloObject):
             affiliation_id,
             api_key,
             transaction_id,
-            sandbox=False):
-        super(ConsultTransaction, self).__init__(sandbox=sandbox)
+            sandbox=False,
+            use_ssl=None,
+        ):
+        super(ConsultTransaction, self).__init__(sandbox=sandbox, use_ssl=use_ssl)
         self.url = SANDBOX_URL if sandbox else PRODUCTION_URL
         self.affiliation_id = affiliation_id
         self.api_key = api_key
@@ -309,8 +316,10 @@ class CancelTransaction(BaseCieloObject):
             api_key,
             transaction_id,
             amount_to_cancel=None,
-            sandbox=False):
-        super(CancelTransaction, self).__init__(sandbox=sandbox)
+            sandbox=False,
+            use_ssl=None,
+        ):
+        super(CancelTransaction, self).__init__(sandbox=sandbox, use_ssl=use_ssl)
         self.url = SANDBOX_URL if sandbox else PRODUCTION_URL
         self.affiliation_id = affiliation_id
         self.api_key = api_key
@@ -338,8 +347,10 @@ class TokenPaymentAttempt(BaseCieloObject):
             url_redirect,
             installments=1,
             transaction=CASH,
-            sandbox=False):
-        super(TokenPaymentAttempt, self).__init__(sandbox=sandbox)
+            sandbox=False,
+            use_ssl=None,
+        ):
+        super(TokenPaymentAttempt, self).__init__(sandbox=sandbox, use_ssl=use_ssl)
         assert isinstance(total, Decimal), u'total must be an instance of Decimal'
         assert installments in range(1, 13), u'installments must be a integer between 1 and 12'
 
@@ -377,9 +388,13 @@ class PaymentAttempt(BaseCieloObject):
             cvc2,
             exp_month,
             exp_year,
-            card_holders_name, transaction=CASH, sandbox=False):
+            card_holders_name,
+            transaction=CASH,
+            sandbox=False,
+            use_ssl=None,
+        ):
 
-        super(PaymentAttempt, self).__init__(sandbox=sandbox)
+        super(PaymentAttempt, self).__init__(sandbox=sandbox, use_ssl=use_ssl)
         assert isinstance(total, Decimal), u'total must be an instance of Decimal'
         assert installments in range(1, 13), u'installments must be a integer between 1 and 12'
 
@@ -426,8 +441,10 @@ class DebtAttempt(BaseCieloObject):
             exp_year,
             card_holders_name,
             url_redirect,
-            sandbox=False):
-        super(DebtAttempt, self).__init__(sandbox=sandbox)
+            sandbox=False,
+            use_ssl=None,
+        ):
+        super(DebtAttempt, self).__init__(sandbox=sandbox, use_ssl=use_ssl)
         assert isinstance(total, Decimal), u'total must be an instance of Decimal'
 
         if len(str(exp_year)) == 2:

@@ -43,7 +43,8 @@ class MainTest(unittest.TestCase):
             'card_holders_name': 'JOAO DA SILVA',
             'installments': 1,
             'transaction': CASH,
-            'sandbox': True,
+            'sandbox': False,
+            'use_ssl': None,
         }
 
         attempt = PaymentAttempt(**params)
