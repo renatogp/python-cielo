@@ -76,7 +76,8 @@ class CieloHTTPSAdapter(HTTPAdapter):
         self.poolmanager = PoolManager(
             num_pools=connections,
             maxsize=maxsize,
-            ssl_version=ssl.PROTOCOL_SSLv3, **kwargs)
+            ssl_version=ssl.PROTOCOL_SSLv3,
+            **kwargs)
 
 
 class GetAuthorizedException(Exception):
@@ -104,7 +105,11 @@ class BaseCieloObject(object):
 
         if use_ssl is None:
             use_ssl = not sandbox
-        if use_ssl:
+
+        if use_ssl and sandbox:
+            self.session.mount('http://', HTTPAdapter())
+
+        if use_ssl and not sandbox:
             self.session.mount('https://', CieloHTTPSAdapter())
 
     def create_token(self):

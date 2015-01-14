@@ -24,6 +24,7 @@ class MainTest(unittest.TestCase):
             'installments': 1,
             'transaction': CASH,
             'sandbox': True,
+            'use_ssl': True,
         }
 
         attempt = PaymentAttempt(**params)
