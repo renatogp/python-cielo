@@ -80,6 +80,15 @@ class CieloHTTPSAdapter(HTTPAdapter):
             **kwargs)
 
 
+class CieloSkipAdapter(HTTPAdapter):
+    def init_poolmanager(self, connections, maxsize, block=False):
+        self.poolmanager = PoolManager(
+            num_pools=connections,
+            maxsize=maxsize,
+            block=block,
+            assert_hostname=False)
+
+
 class GetAuthorizedException(Exception):
     def __init__(self, id, message=None):
         self.id = id
@@ -107,7 +116,7 @@ class BaseCieloObject(object):
             use_ssl = not sandbox
 
         if use_ssl and sandbox:
-            self.session.mount('http://', HTTPAdapter())
+            self.session.mount('http://', CieloSkipAdapter())
 
         if use_ssl and not sandbox:
             self.session.mount('https://', CieloHTTPSAdapter())
