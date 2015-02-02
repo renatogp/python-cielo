@@ -76,7 +76,7 @@ class CieloHTTPSAdapter(HTTPAdapter):
         self.poolmanager = PoolManager(
             num_pools=connections,
             maxsize=maxsize,
-            ssl_version=ssl.PROTOCOL_SSLv3,
+            # ssl_version=ssl.PROTOCOL_SSLv3,
             **kwargs)
 
 
