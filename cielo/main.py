@@ -70,13 +70,18 @@ CIELO_MSG_ERRORS = {
     '099': u'Falha no sistema.(099-Erro inesperado)',
 }
 
+try:
+    SSL_VERSION = ssl.PROTOCOL_SSLv23
+except:
+    SSL_VERSION = ssl.PROTOCOL_TLSv1
+
 
 class CieloHTTPSAdapter(HTTPAdapter):
     def init_poolmanager(self, connections, maxsize, **kwargs):
         self.poolmanager = PoolManager(
             num_pools=connections,
             maxsize=maxsize,
-            ssl_version=ssl.PROTOCOL_TLSv1,
+            ssl_version=SSL_VERSION,
             **kwargs)
 
 
