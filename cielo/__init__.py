@@ -1,1 +1,1 @@
-from main import PaymentAttempt, GetAuthorizedException, CaptureException
+from main import PaymentAttempt, GetAuthorizedException, CaptureException, CreditCardToken

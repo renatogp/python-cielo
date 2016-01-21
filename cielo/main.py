@@ -43,6 +43,10 @@ class CaptureException(Exception):
     pass
 
 
+class CreditCardBlockedException(Exception):
+    pass
+
+
 class PaymentAttempt(object):
     VISA, MASTERCARD, DINERS, DISCOVER, ELO, AMEX = 'visa', 'mastercard', 'diners', 'discover', 'elo', 'amex'
     CARD_TYPE_C = (
@@ -148,3 +152,43 @@ class PaymentAttempt(object):
             # 6 = capturado
             raise CaptureException()
         return True
+
+
+class CreditCardToken(object):
+    def __init__(self, affiliation_id, api_key, card_number, exp_month, exp_year, card_holders_name, sandbox=False):
+
+        if len(str(exp_year)) == 2:
+            exp_year = '20%s' % exp_year  # FIXME: bug do milênio em 2100
+
+        self.url = SANDBOX_URL if sandbox else PRODUCTION_URL
+        self.affiliation_id = affiliation_id
+        self.api_key = api_key
+        self.card_number = card_number
+        self.exp_month = exp_month
+        self.exp_year = exp_year
+        self.expiration = '%s%s' % (exp_year, exp_month)
+        self.card_holders_name = card_holders_name
+        self._authorized = False
+
+        self.sandbox = sandbox
+
+    def create(self):
+        payload = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'card_token.xml'), 'r').read() % self.__dict__
+
+        response = requests.post(self.url, data={
+            'mensagem': payload,
+        })
+
+        dom = xml.dom.minidom.parseString(response.content)
+        status = int(dom.getElementsByTagName('status')[0].childNodes[0].data)
+        token = dom.getElementsByTagName('codigo-token')[0].childNodes[0].data
+        truncated_card = dom.getElementsByTagName('numero-cartao-truncado')[0].childNodes[0].data
+
+        if status != 1:
+            # Cartão de crédito bloqueado
+            raise CreditCardBlockedException()
+
+        return {
+            'token': token,
+            'truncated': truncated_card,
+        }
